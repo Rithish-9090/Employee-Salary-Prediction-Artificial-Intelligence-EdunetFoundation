@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc, mean_squared_error, r2_score
 
 # --- 1. Load and Clean the Data ---
 # Load the dataset and directly replace '?' values and drop the 'education' column.
@@ -106,16 +107,69 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# --- 6. Compare Model Accuracies ---
-# Create a bar chart comparing the accuracy of the two models.
-model_names = ["Logistic Regression", "Random Forest"]
-accuracies = [lr_accuracy, rf_accuracy]
+# --- 6. Linear Regression: Train and Evaluate ---
+print("\n--- Training Linear Regression ---")
+# Linear Regression is typically used for regression tasks, not classification.
+# However, we can use it to predict a continuous value and then threshold it for classification.
+# This is generally not recommended for classification problems, but included as requested.
+lr_reg_model = LinearRegression()
+lr_reg_model.fit(X_train, y_train)
 
-plt.figure(figsize=(8, 6))
-plt.bar(model_names, accuracies, color=['skyblue', 'lightgreen'])
+# Make predictions and evaluate.
+lr_reg_predictions = lr_reg_model.predict(X_test)
+# Threshold predictions at 0.5 for binary classification
+lr_reg_predictions_classified = (lr_reg_predictions > 0.5).astype(int)
+
+# Evaluate using classification metrics
+lr_reg_accuracy = accuracy_score(y_test, lr_reg_predictions_classified)
+print(f"Accuracy (thresholded): {lr_reg_accuracy:.4f}")
+print(classification_report(y_test, lr_reg_predictions_classified))
+
+# --- 7. K-Nearest Neighbors: Train, Evaluate, and Plot ---
+print("\n--- Training K-Nearest Neighbors ---")
+knn_model = KNeighborsClassifier()
+knn_model.fit(X_train, y_train)
+
+# Make predictions and get the accuracy.
+knn_predictions = knn_model.predict(X_test)
+knn_accuracy = accuracy_score(y_test, knn_predictions)
+print(f"Accuracy: {knn_accuracy:.4f}")
+print(classification_report(y_test, knn_predictions))
+
+# Generate and display the Confusion Matrix.
+knn_cm = confusion_matrix(y_test, knn_predictions)
+plt.figure(figsize=(6, 5))
+sns.heatmap(knn_cm, annot=True, fmt="d", cmap="Purples")
+plt.title("KNN - Confusion Matrix")
+plt.ylabel("Actual")
+plt.xlabel("Predicted")
+plt.show()
+
+# Generate and display the ROC Curve.
+knn_probas = knn_model.predict_proba(X_test)[:, 1]
+fpr, tpr, _ = roc_curve(y_test, knn_probas)
+roc_auc = auc(fpr, tpr)
+plt.figure(figsize=(6, 5))
+plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}", color="darkviolet")
+plt.plot([0, 1], [0, 1], linestyle='--', color='navy')
+plt.title("KNN - ROC Curve")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# --- 8. Compare Model Accuracies ---
+# Create a bar chart comparing the accuracy of all models.
+model_names = ["Logistic Regression", "Random Forest", "Linear Regression (Thresholded)", "KNN"]
+accuracies = [lr_accuracy, rf_accuracy, lr_reg_accuracy, knn_accuracy]
+
+plt.figure(figsize=(10, 6))
+plt.bar(model_names, accuracies, color=['skyblue', 'lightgreen', 'salmon', 'plum'])
 plt.ylabel("Accuracy Score")
 plt.title("Model Accuracy Comparison")
-plt.ylim(0.8, 0.9)
-plt.text(0, lr_accuracy + 0.002, f'{lr_accuracy:.4f}', ha='center', fontsize=12)
-plt.text(1, rf_accuracy + 0.002, f'{rf_accuracy:.4f}', ha='center', fontsize=12)
+plt.ylim(0.8, 0.9) # Adjust ylim as needed based on results
+for i, acc in enumerate(accuracies):
+    plt.text(i, acc + 0.002, f'{acc:.4f}', ha='center', fontsize=12)
 plt.show()
